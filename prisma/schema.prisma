@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BranchStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+model Organization {
+  id          String      @id @default(cuid())
+  name        String
+  currency    String      @default("PKR")
+  timezone    String      @default("Asia/Karachi")
+  dateFormat  String      @default("dd-MM-yyyy")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  branches    Branch[]
+  users       User[]
+  roles       Role[]
+  auditLogs   AuditLog[]
+}
+
+model Branch {
+  id               String       @id @default(cuid())
+  organizationId   String
+  code             String
+  name             String
+  address          String?
+  city             String?
+  phone            String?
+  status           BranchStatus @default(ACTIVE)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  userAssignments  UserBranch[]
+  auditLogs        AuditLog[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
+}
+
+model User {
+  id                 String       @id @default(cuid())
+  organizationId     String
+  roleId             String
+  name               String
+  email              String       @unique
+  passwordHash       String
+  status             UserStatus   @default(INVITED)
+  lastLoginAt        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  role               Role         @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  branchAssignments UserBranch[]
+  auditLogs          AuditLog[]   @relation("AuditActor")
+
+  @@index([organizationId, status])
+  @@index([roleId])
+}
+
+model Role {
+  id              String           @id @default(cuid())
+  organizationId  String
+  name            String
+  description     String?
+  isSystem        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  users           User[]
+  permissions     RolePermission[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+  createdAt    DateTime   @default(now())
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model UserBranch {
+  userId      String
+  branchId    String
+  isPrimary   Boolean  @default(false)
+  assignedAt  DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  @@id([userId, branchId])
+  @@index([branchId])
+}
+
+model AuditLog {
+  id              String       @id @default(cuid())
+  organizationId  String
+  branchId        String?
+  actorUserId     String?
+  action          String
+  entityType      String
+  entityId        String
+  previousData    Json?
+  newData         Json?
+  reason          String?
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime     @default(now())
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch          Branch?      @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  actor           User?        @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([branchId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([entityType, entityId])
+}
