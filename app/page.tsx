@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { Activity, Archive, ArrowUpRight, Building2, ChartNoAxesCombined, CircleDollarSign, Footprints, LayoutDashboard, Package, ReceiptText, ShieldCheck, Users, Wallet } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
@@ -13,7 +14,7 @@ export default async function DashboardPage() {
   }
   const owner = user.role.name === "OWNER";
   const assignedBranchIds = user.branchAssignments.map((item) => item.branchId);
-  const branchScope = owner ? {} : { id: { in: assignedBranchIds } };
+  const branchScope: Prisma.BranchWhereInput = owner ? {} : { id: { in: assignedBranchIds } };
   const [activeBranches, archivedBranches, branches, staffCount] = await Promise.all([
     prisma.branch.count({ where: { organizationId: user.organizationId, ...branchScope, status: "ACTIVE" } }),
     prisma.branch.count({ where: { organizationId: user.organizationId, ...branchScope, status: "INACTIVE" } }),
