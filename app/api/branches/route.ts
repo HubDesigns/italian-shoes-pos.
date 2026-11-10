@@ -9,7 +9,7 @@ export async function GET() {
   const branches = await prisma.branch.findMany({
     where: {
       organizationId: user.organizationId,
-      ...(isBusinessOwner ? {} : { userAssignments: { some: { userId: user.id } } }),
+      ...(isBusinessOwner ? {} : { status: "ACTIVE", userAssignments: { some: { userId: user.id } } }),
     },
     orderBy: [{ status: "asc" }, { name: "asc" }],
     select: { id: true, code: true, name: true, address: true, city: true, phone: true, status: true, createdAt: true },
