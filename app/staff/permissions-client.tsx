@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LockKeyhole, Save, UserPlus, Users, Building2, Check, X, Pencil } from "lucide-react";
+import { LockKeyhole, Save, UserPlus, Users, Check, Pencil } from "lucide-react";
 
 type Role = { id: string; name: string; description: string | null; permissions: { permission: { key: string; description: string } }[] };
 type Branch = { id: string; name: string };
