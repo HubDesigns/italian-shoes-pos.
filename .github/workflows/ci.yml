@@ -1,14 +1,19 @@
 name: Application checks
 
 on:
-  push:
-    branches: [main]
   pull_request:
+    branches: [main]
+  push:
     branches: [main]
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/italian_shoes?schema=public
+      DIRECT_URL: postgresql://ci:ci@localhost:5432/italian_shoes?schema=public
+      AUTH_SECRET: ci-only-secret-at-least-32-characters-long
+      OWNER_SETUP_SECRET: ci-only-owner-setup-secret
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -17,29 +22,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: Install dependencies
         run: npm install
 
       - name: Validate database schema
         run: npx prisma validate
-        env:
-          DATABASE_URL: postgresql://ci:ci@localhost:5432/italian_shoes?schema=public
-          DIRECT_URL: postgresql://ci:ci@localhost:5432/italian_shoes?schema=public
-          AUTH_SECRET: ci-only-secret-at-least-32-characters-long
-          OWNER_SETUP_SECRET: ci-only-owner-setup-secret
-          DIRECT_URL: postgresql://ci:ci@localhost:5432/italian_shoes?schema=public
 
       - name: Generate Prisma Client
         run: npm run db:generate
-        env:
-          DATABASE_URL: postgresql://ci:ci@localhost:5432/italian_shoes?schema=public
 
       - name: Run lint
         run: npm run lint
 
       - name: Build application
         run: npm run build
-        env:
-          DATABASE_URL: postgresql://ci:ci@localhost:5432/italian_shoes?schema=public
