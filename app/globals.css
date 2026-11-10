@@ -297,3 +297,7 @@ h1 { font: 800 27px Manrope, sans-serif; letter-spacing: -.04em; margin: 0; colo
   .staff-record > .small-action { grid-column: 2; grid-row: 1; }
   .branch-checkbox-grid { grid-template-columns: 1fr; }
 }
+
+.workspace-content { min-width: 0; padding: 0; }
+.breadcrumb-link { color: #748195; text-decoration: none; }
+.breadcrumb-link:hover { color: #16865d; }
