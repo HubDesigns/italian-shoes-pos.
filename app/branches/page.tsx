@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import BranchesClient from "./branches-client";
+import WorkspaceLayout from "../workspace-layout";
 
 export default async function BranchesPage() {
   const user = await getCurrentUser();
@@ -11,5 +12,5 @@ export default async function BranchesPage() {
     orderBy: [{ status: "asc" }, { name: "asc" }],
     select: { id: true, code: true, name: true, address: true, city: true, phone: true, status: true },
   });
-  return <BranchesClient initialBranches={branches} owner={user.role.name === "OWNER"}/>;
+  return <WorkspaceLayout active="branches" user={user}><BranchesClient initialBranches={branches} owner={user.role.name === "OWNER"}/></WorkspaceLayout>;
 }
