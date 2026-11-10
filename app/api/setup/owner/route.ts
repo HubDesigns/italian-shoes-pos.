@@ -50,7 +50,9 @@ export async function POST(request: NextRequest) {
       const owner = await tx.user.create({
         data: { organizationId: organization.id, roleId: ownerRole.id, name, email, passwordHash, status: "ACTIVE" },
       });
-      await tx.role.create({ data: { organizationId: organization.id, name: "BRANCH_MANAGER", description: "Access limited by Owner permissions", isSystem: true } });
+      const managerRole = await tx.role.create({ data: { organizationId: organization.id, name: "BRANCH_MANAGER", description: "Access limited by Owner permissions", isSystem: true } });
+      const managerDefaults = permissionRows.filter((permission) => ["dashboard.view", "sales.view", "sales.create", "inventory.view", "reports.view"].includes(permission.key));
+      await tx.rolePermission.createMany({ data: managerDefaults.map((permission) => ({ roleId: managerRole.id, permissionId: permission.id })) });
       return owner;
     }, { maxWait: 10000, timeout: 20000 });
 
