@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, Building2, Edit3, MapPin, Plus, RotateCcw, Search, X } from "lucide-react";
+import { Archive, Building2, Check, Edit3, MapPin, Plus, RotateCcw, Search, X } from "lucide-react";
 
 type Branch = { id: string; code: string; name: string; address: string | null; city: string | null; phone: string | null; status: "ACTIVE" | "INACTIVE" };
 type Draft = { code: string; name: string; address: string; city: string; phone: string };
