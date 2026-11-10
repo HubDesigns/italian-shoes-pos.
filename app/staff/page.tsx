@@ -7,10 +7,10 @@ export default async function StaffPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (user.role.name !== "OWNER") redirect("/");
-  const roles = await prisma.role.findMany({
-    where: { organizationId: user.organizationId },
-    orderBy: [{ name: "asc" }],
-    select: { id: true, name: true, description: true, permissions: { select: { permission: { select: { key: true, description: true } } } } },
-  });
-  return <PermissionsClient initialRoles={roles}/>;
+  const [roles, staff, branches] = await Promise.all([
+    prisma.role.findMany({ where: { organizationId: user.organizationId }, orderBy: [{ name: "asc" }], select: { id: true, name: true, description: true, permissions: { select: { permission: { select: { key: true, description: true } } } } } }),
+    prisma.user.findMany({ where: { organizationId: user.organizationId, id: { not: user.id } }, orderBy: { name: "asc" }, select: { id: true, name: true, email: true, status: true, role: { select: { id: true, name: true } }, branchAssignments: { select: { branch: { select: { id: true, name: true, status: true } } } } } }),
+    prisma.branch.findMany({ where: { organizationId: user.organizationId, status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+  ]);
+  return <PermissionsClient initialRoles={roles} initialStaff={staff} branches={branches}/>;
 }
