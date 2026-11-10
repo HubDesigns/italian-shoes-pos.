@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Building2, Footprints, LayoutDashboard, Package, ReceiptText, ShieldCheck, Users, Wallet, ChartNoAxesCombined } from "lucide-react";
+import { Building2, Footprints, LayoutDashboard, Package, ReceiptText, Users, Wallet, ChartNoAxesCombined } from "lucide-react";
 import LogoutButton from "./logout-button";
 
 type Props = { children: React.ReactNode; active: "branches" | "staff"; user: { name: string; email: string; role: { name: string } } };
