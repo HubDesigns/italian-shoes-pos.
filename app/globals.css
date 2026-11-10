@@ -301,3 +301,71 @@ h1 { font: 800 27px Manrope, sans-serif; letter-spacing: -.04em; margin: 0; colo
 .workspace-content { min-width: 0; padding: 0; }
 .breadcrumb-link { color: #748195; text-decoration: none; }
 .breadcrumb-link:hover { color: #16865d; }
+
+/* Italian Shoes — dark leather visual theme */
+:root {
+  --navy: #3B2418;
+  --navy-deep: #3B2418;
+  --green-soft: #f3e9df;
+  --ink: #2c211b;
+  --muted: #8b7769;
+  --line: #eadfd5;
+  --canvas: #f7f3ed;
+}
+.sidebar {
+  background: #3B2418;
+}
+.brand-mark {
+  background: #A8794F;
+  color: #3B2418;
+}
+.nav-item.active {
+  background: #70452B;
+  color: #fffaf5;
+  box-shadow: inset 3px 0 #D5B18C;
+}
+.nav-item:hover {
+  background: rgba(255, 245, 235, .10);
+}
+.topbar {
+  background: #3B2418;
+  border-bottom: 1px solid #5a3b2c;
+}
+.breadcrumb {
+  color: #d7c3b3;
+}
+.breadcrumb strong {
+  color: #fffaf5;
+}
+.breadcrumb-link,
+.breadcrumb-link:hover {
+  color: #e4cdb9;
+}
+.owner-pill {
+  border-left-color: #654633;
+}
+.owner-avatar {
+  background: #A8794F;
+  color: #3B2418;
+}
+.owner-label {
+  color: #fffaf5;
+}
+.owner-caption {
+  color: #d7c3b3;
+}
+.top-role-chip {
+  background: #70452B;
+  color: #fff4e9;
+}
+.primary-button {
+  background: #70452B;
+  color: #fffaf5;
+}
+.primary-button:hover {
+  background: #5a3624;
+}
+.auth-logo {
+  background: #3B2418;
+}
+
