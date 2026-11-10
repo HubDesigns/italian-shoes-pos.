@@ -27,6 +27,9 @@ jobs:
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/italian_shoes?schema=public
           DIRECT_URL: postgresql://ci:ci@localhost:5432/italian_shoes?schema=public
+          AUTH_SECRET: ci-only-secret-at-least-32-characters-long
+          OWNER_SETUP_SECRET: ci-only-owner-setup-secret
+          DIRECT_URL: postgresql://ci:ci@localhost:5432/italian_shoes?schema=public
 
       - name: Generate Prisma Client
         run: npm run db:generate
