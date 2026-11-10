@@ -18,14 +18,20 @@ export async function PATCH(request: NextRequest, context: Context) {
     address: body?.address === undefined ? existing.address : String(body.address).trim() || null,
     city: body?.city === undefined ? existing.city : String(body.city).trim() || null,
     phone: body?.phone === undefined ? existing.phone : String(body.phone).trim() || null,
-    status: body?.status === "INACTIVE" ? "INACTIVE" as const : "ACTIVE" as const,
+    status: body?.status === "INACTIVE" ? "INACTIVE" as const : body?.status === "ACTIVE" ? "ACTIVE" as const : existing.status,
   };
   if (!data.code || !data.name) return NextResponse.json({ error: "Branch code and name are required." }, { status: 400 });
-  const branch = await prisma.$transaction(async (tx) => {
+  let branch;
+  try {
+    branch = await prisma.$transaction(async (tx) => {
     const updated = await tx.branch.update({ where: { id }, data });
     await tx.auditLog.create({ data: { organizationId: user.organizationId, branchId: id, actorUserId: user.id, action: "BRANCH_UPDATED", entityType: "Branch", entityId: id, previousData: { code: existing.code, name: existing.name, status: existing.status }, newData: data } });
     return updated;
-  });
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Unique constraint")) return NextResponse.json({ error: "That branch code is already in use." }, { status: 409 });
+    throw error;
+  }
   return NextResponse.json({ branch });
 }
 
