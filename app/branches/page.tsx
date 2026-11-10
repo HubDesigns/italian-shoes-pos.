@@ -7,7 +7,7 @@ export default async function BranchesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const branches = await prisma.branch.findMany({
-    where: { organizationId: user.organizationId, ...(user.role.name === "OWNER" ? {} : { userAssignments: { some: { userId: user.id } } }) },
+    where: { organizationId: user.organizationId, ...(user.role.name === "OWNER" ? {} : { status: "ACTIVE", userAssignments: { some: { userId: user.id } } }) },
     orderBy: [{ status: "asc" }, { name: "asc" }],
     select: { id: true, code: true, name: true, address: true, city: true, phone: true, status: true },
   });
