@@ -46,6 +46,13 @@ export async function getCurrentUser() {
   }
 }
 
+export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
+
+/** The Owner always passes; everyone else needs the permission granted to their role. */
+export function hasPermission(user: CurrentUser, key: string) {
+  return user.role.name === "OWNER" || user.role.permissions.some((item) => item.permission.key === key);
+}
+
 export async function isOwner() {
   const user = await getCurrentUser();
   return user?.role.name === "OWNER";

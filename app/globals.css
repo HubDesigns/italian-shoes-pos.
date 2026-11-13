@@ -369,3 +369,17 @@ h1 { font: 800 27px Manrope, sans-serif; letter-spacing: -.04em; margin: 0; colo
   background: #3B2418;
 }
 
+
+/* Phone navigation drawer */
+.nav-overlay { display: none; }
+@media (max-width: 760px) {
+  .nav-open .sidebar {
+    display: flex; position: fixed; top: 0; bottom: 0; left: 0; width: 264px;
+    z-index: 60; overflow-y: auto; box-shadow: 8px 0 28px rgba(0, 0, 0, .35);
+  }
+  .nav-overlay {
+    display: block; position: fixed; inset: 0; z-index: 55; border: 0; padding: 0;
+    background: rgba(20, 12, 8, .5); cursor: default;
+  }
+  .topbar .top-actions { gap: 10px; }
+}
