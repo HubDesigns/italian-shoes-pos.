@@ -9,11 +9,26 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: italian_shoes
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d italian_shoes"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     env:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/italian_shoes?schema=public
       DIRECT_URL: postgresql://ci:ci@localhost:5432/italian_shoes?schema=public
       AUTH_SECRET: ci-only-secret-at-least-32-characters-long
       OWNER_SETUP_SECRET: ci-only-owner-setup-secret
+      SMOKE_BASE_URL: http://localhost:3100
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,13 +39,19 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Validate database schema
         run: npx prisma validate
 
       - name: Generate Prisma Client
         run: npm run db:generate
+
+      - name: Apply migrations to an empty database
+        run: npx prisma migrate deploy
+
+      - name: Check migrations match the schema (no drift)
+        run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
 
       - name: Run lint
         run: npm run lint
@@ -40,3 +61,19 @@ jobs:
 
       - name: Build application
         run: npm run build
+
+      - name: Start the application
+        run: |
+          nohup npx next start -p 3100 > server.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS http://localhost:3100/api/health > /dev/null; then echo "app is up"; exit 0; fi
+            sleep 2
+          done
+          echo "app did not start"; cat server.log; exit 1
+
+      - name: End-to-end check against the real database
+        run: npm run smoke
+
+      - name: Show application log on failure
+        if: failure()
+        run: cat server.log || true

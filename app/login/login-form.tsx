@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Footprints, LoaderCircle } from "lucide-react";
 
@@ -27,5 +28,6 @@ export default function LoginForm() {
     <label className="form-field"><span>Password</span><input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
     {error && <div className="form-error">{error}</div>}
     <button className="primary-button auth-submit" disabled={busy}>{busy ? <><LoaderCircle className="spin" size={16}/> Signing in…</> : "Sign in"}</button>
+    <Link href="/reset-owner" className="auth-link">Forgot the Owner password?</Link>
   </form></main>;
 }

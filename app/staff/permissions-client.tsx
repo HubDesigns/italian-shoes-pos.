@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LockKeyhole, Save, UserPlus, Users, Check, Pencil } from "lucide-react";
+import { LockKeyhole, Save, UserPlus, Users, Check, Pencil, KeyRound, UserX, UserCheck } from "lucide-react";
 
 type Role = { id: string; name: string; description: string | null; permissions: { permission: { key: string; description: string } }[] };
 type Branch = { id: string; name: string };
@@ -24,6 +24,8 @@ export default function PermissionsClient({ initialRoles, initialStaff, branches
   const [newBranches, setNewBranches] = useState<string[]>(branches[0] ? [branches[0].id] : []);
   const [editingStaff, setEditingStaff] = useState<string | null>(null);
   const [editBranches, setEditBranches] = useState<string[]>([]);
+  const [resetting, setResetting] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
   const role = roles.find((item) => item.id === selectedId);
   function chooseRole(id: string) { setSelectedId(id); setSelected(roles.find((item) => item.id === id)?.permissions.map((p) => p.permission.key) ?? []); setMessage(""); }
   function toggle(key: string) { setSelected((old) => old.includes(key) ? old.filter((item) => item !== key) : [...old, key]); }
@@ -61,6 +63,40 @@ export default function PermissionsClient({ initialRoles, initialStaff, branches
     } catch (error) { setMessage(error instanceof Error ? error.message : "Something went wrong."); }
     finally { setBusy(false); }
   }
+  async function updateMember(id: string, changes: { status?: "ACTIVE" | "SUSPENDED"; roleId?: string }, done: string) {
+    setBusy(true); setMessage("");
+    try {
+      const response = await fetch(`/api/staff/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(changes) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not update the account.");
+      setStaff((old) => old.map((member) => {
+        if (member.id !== id) return member;
+        const nextRole = changes.roleId ? roles.find((item) => item.id === changes.roleId) : undefined;
+        return { ...member, status: changes.status ?? member.status, role: nextRole ? { id: nextRole.id, name: nextRole.name } : member.role };
+      }));
+      setMessage(done);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Something went wrong."); }
+    finally { setBusy(false); }
+  }
+  async function toggleSuspend(member: Staff) {
+    if (member.status === "ACTIVE") {
+      if (!window.confirm(`Suspend ${member.name}? They are signed out immediately and cannot sign in until you reactivate the account.`)) return;
+      await updateMember(member.id, { status: "SUSPENDED" }, `${member.name} was suspended successfully.`);
+    } else {
+      await updateMember(member.id, { status: "ACTIVE" }, `${member.name} was reactivated successfully.`);
+    }
+  }
+  async function submitReset(event: React.FormEvent<HTMLFormElement>, member: Staff) {
+    event.preventDefault(); setBusy(true); setMessage("");
+    try {
+      const response = await fetch(`/api/staff/${member.id}/password`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ newPassword: resetPassword }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not reset the password.");
+      setResetting(null); setResetPassword("");
+      setMessage(`New password set for ${member.name} successfully. They were signed out everywhere.`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Something went wrong."); }
+    finally { setBusy(false); }
+  }
   return <div className="management-page">
     <div className="management-heading"><div><div className="eyebrow">Owner controls</div><h1>Staff & permissions</h1><p>Create staff accounts, assign their branches and control access by role.</p></div><button className="primary-button" onClick={() => { setShowCreate((old) => !old); setMessage(""); }}><UserPlus size={16}/>{showCreate ? "Close form" : "Add staff member"}</button></div>
     {message && <div className={message.includes("successfully") ? "success-banner" : "form-error"}>{message}</div>}
@@ -69,14 +105,24 @@ export default function PermissionsClient({ initialRoles, initialStaff, branches
       <div className="form-grid">
         <label className="form-field"><span>Full name</span><input required value={newStaff.name} onChange={(e) => setNewStaff((old) => ({ ...old, name: e.target.value }))}/></label>
         <label className="form-field"><span>Email address</span><input required type="email" value={newStaff.email} onChange={(e) => setNewStaff((old) => ({ ...old, email: e.target.value }))}/></label>
-        <label className="form-field"><span>Temporary password (minimum 10 characters)</span><input required type="password" minLength={10} value={newStaff.password} onChange={(e) => setNewStaff((old) => ({ ...old, password: e.target.value }))}/></label>
+        <label className="form-field"><span>Temporary password (at least 10 characters)</span><input required type="password" minLength={10} value={newStaff.password} onChange={(e) => setNewStaff((old) => ({ ...old, password: e.target.value }))}/></label>
         <label className="form-field"><span>Role</span><select value={newStaff.roleId} required onChange={(e) => setNewStaff((old) => ({ ...old, roleId: e.target.value }))}>{roles.filter((item) => item.name !== "OWNER").map((item) => <option key={item.id} value={item.id}>{item.name.replaceAll("_"," ")}</option>)}</select></label>
         <div className="form-field full"><span>Branch access (select one or more)</span><div className="branch-checkbox-grid">{branches.map((branch) => <label key={branch.id}><input type="checkbox" checked={newBranches.includes(branch.id)} onChange={() => toggleBranch(branch.id,newBranches,setNewBranches)}/>{branch.name}</label>)}</div>{branches.length === 0 && <small>Create an active branch before adding branch staff.</small>}</div>
       </div>
       <div className="form-actions"><button type="button" className="secondary-button" onClick={() => setShowCreate(false)}>Cancel</button><button className="primary-button" disabled={busy || !branches.length || !newStaff.roleId}>{busy ? "Creating…" : "Create account"}</button></div>
     </form>}
     <section className="management-panel staff-list-panel"><div className="panel-header"><div><div className="panel-title">Staff accounts</div><div className="panel-subtitle">A user can access only branches assigned by the Owner.</div></div><Users size={18} color="#16865d"/></div>
-      {staff.length === 0 ? <div className="empty-state"><Users size={27}/><strong>No staff accounts yet</strong><span>Create your first branch manager or staff account.</span></div> : <div className="staff-list">{staff.map((member) => <div className="staff-record" key={member.id}><div className="staff-person"><span className="staff-avatar">{member.name.slice(0,1).toUpperCase()}</span><span><strong>{member.name}</strong><small>{member.email} · {member.role.name.replaceAll("_"," ")}</small></span></div><div className="staff-branches">{member.branchAssignments.map((item) => <span key={item.branch.id}>{item.branch.name}</span>)}</div><button className="small-action" onClick={() => { setEditingStaff(editingStaff === member.id ? null : member.id); setEditBranches(member.branchAssignments.filter((item) => item.branch.status === "ACTIVE").map((item) => item.branch.id)); }}><Pencil size={13}/> Branch access</button>
+      {staff.length === 0 ? <div className="empty-state"><Users size={27}/><strong>No staff accounts yet</strong><span>Create your first branch manager or staff account.</span></div> : <div className="staff-list">{staff.map((member) => <div className={member.status === "ACTIVE" ? "staff-record" : "staff-record staff-suspended"} key={member.id}><div className="staff-person"><span className="staff-avatar">{member.name.slice(0,1).toUpperCase()}</span><span><strong>{member.name}{member.status !== "ACTIVE" && <span className="status-pill status-archived" style={{ marginLeft: 8 }}>Suspended</span>}</strong><small>{member.email}</small></span></div>
+        <div className="staff-branches">{member.branchAssignments.map((item) => <span key={item.branch.id}>{item.branch.name}</span>)}</div>
+        <div className="staff-actions">
+          <select aria-label={`Role for ${member.name}`} value={member.role.id} disabled={busy} onChange={(e) => updateMember(member.id, { roleId: e.target.value }, `${member.name} now has the ${(roles.find((item) => item.id === e.target.value)?.name ?? "new").replaceAll("_", " ")} role.`)}>
+            {roles.filter((item) => item.name !== "OWNER").map((item) => <option key={item.id} value={item.id}>{item.name.replaceAll("_", " ")}</option>)}
+          </select>
+          <button className="small-action" onClick={() => { setEditingStaff(editingStaff === member.id ? null : member.id); setResetting(null); setEditBranches(member.branchAssignments.filter((item) => item.branch.status === "ACTIVE").map((item) => item.branch.id)); }}><Pencil size={13}/> Branch access</button>
+          <button className="small-action" onClick={() => { setResetting(resetting === member.id ? null : member.id); setEditingStaff(null); setResetPassword(""); }}><KeyRound size={13}/> Reset password</button>
+          <button className="small-action" disabled={busy} onClick={() => toggleSuspend(member)}>{member.status === "ACTIVE" ? <><UserX size={13}/> Suspend</> : <><UserCheck size={13}/> Reactivate</>}</button>
+        </div>
+        {resetting === member.id && <form className="staff-access-editor" onSubmit={(event) => submitReset(event, member)}><strong>Set a new password for {member.name}</strong><label className="form-field"><span>New password (at least 10 characters)</span><input required type="password" minLength={10} autoComplete="new-password" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)}/></label><small>They are signed out everywhere and must use this password next time. Tell them in person.</small><div className="form-actions"><button className="secondary-button" onClick={() => setResetting(null)} type="button">Cancel</button><button className="primary-button" disabled={busy || resetPassword.length < 10}><Check size={14}/> Set password</button></div></form>}
         {editingStaff === member.id && <div className="staff-access-editor"><strong>Branches this user can access</strong><div className="branch-checkbox-grid">{branches.map((branch) => <label key={branch.id}><input type="checkbox" checked={editBranches.includes(branch.id)} onChange={() => toggleBranch(branch.id,editBranches,setEditBranches)}/>{branch.name}</label>)}</div><div className="form-actions"><button className="secondary-button" onClick={() => setEditingStaff(null)} type="button">Cancel</button><button className="primary-button" disabled={busy || !editBranches.length} onClick={() => saveBranchAccess(member.id)} type="button"><Check size={14}/> Save access</button></div></div>}
       </div>)}</div>}
     </section>

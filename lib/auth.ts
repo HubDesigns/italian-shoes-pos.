@@ -1,8 +1,10 @@
 import { cookies } from "next/headers";
+import type { NextResponse } from "next/server";
 import { jwtVerify, SignJWT } from "jose";
 import { prisma } from "@/lib/prisma";
 
 const COOKIE_NAME = "italian_shoes_session";
+const SESSION_SECONDS = 60 * 60 * 12;
 
 function authKey() {
   const value = process.env.AUTH_SECRET;
@@ -10,11 +12,12 @@ function authKey() {
   return new TextEncoder().encode(value);
 }
 
-export async function createSessionToken(userId: string) {
-  return new SignJWT({ sub: userId })
+/** The token carries the user's session version, so changing a password or suspending an account ends old sessions. */
+export async function createSessionToken(userId: string, sessionVersion: number) {
+  return new SignJWT({ sub: userId, sv: sessionVersion })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("12h")
+    .setExpirationTime(`${SESSION_SECONDS}s`)
     .sign(authKey());
 }
 
@@ -22,16 +25,27 @@ export function sessionCookieName() {
   return COOKIE_NAME;
 }
 
+/** Signs the user in by setting the session cookie on a response. */
+export async function startSession(response: NextResponse, user: { id: string; sessionVersion: number }) {
+  response.cookies.set(COOKIE_NAME, await createSessionToken(user.id, user.sessionVersion), {
+    httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: SESSION_SECONDS,
+  });
+}
+
+export function endSession(response: NextResponse) {
+  response.cookies.set(COOKIE_NAME, "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0 });
+}
+
 export async function getCurrentUser() {
   const token = (await cookies()).get(COOKIE_NAME)?.value;
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, authKey());
-    if (typeof payload.sub !== "string") return null;
-    return await prisma.user.findUnique({
+    if (typeof payload.sub !== "string" || typeof payload.sv !== "number") return null;
+    const user = await prisma.user.findUnique({
       where: { id: payload.sub },
       select: {
-        id: true, organizationId: true, name: true, email: true, status: true,
+        id: true, organizationId: true, name: true, email: true, status: true, sessionVersion: true,
         role: {
           select: {
             id: true, name: true,
@@ -40,7 +54,9 @@ export async function getCurrentUser() {
         },
         branchAssignments: { select: { branchId: true, isPrimary: true } },
       },
-    }).then((user) => user?.status === "ACTIVE" ? user : null);
+    });
+    if (!user || user.status !== "ACTIVE" || user.sessionVersion !== payload.sv) return null;
+    return user;
   } catch {
     return null;
   }
