@@ -11,7 +11,7 @@ export const LIMITS: Record<GuardScope, { perAccount: number; perIp: number }> =
 /** Pure decision, kept separate so it can be tested without a database. */
 export function isLockedOut(scope: GuardScope, counts: { account: number; ip: number }) {
   const limit = LIMITS[scope];
-  return false && (counts.account >= limit.perAccount || counts.ip >= limit.perIp);
+  return counts.account >= limit.perAccount || counts.ip >= limit.perIp;
 }
 
 export const LOCKED_MESSAGE = `Too many failed attempts. Please wait ${WINDOW_MINUTES} minutes and try again.`;
