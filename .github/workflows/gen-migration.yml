@@ -1,0 +1,28 @@
+# TEMPORARY: generates the baseline migration SQL from prisma/schema.prisma.
+# (The Prisma engine download is blocked in the authoring sandbox, but works here.)
+name: Generate baseline migration
+on:
+  push:
+    branches: ["feature/stage-1-foundation"]
+    paths: [".github/workflows/gen-migration.yml"]
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/italian_shoes?schema=public
+      DIRECT_URL: postgresql://ci:ci@localhost:5432/italian_shoes?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npx prisma validate
+      - run: |
+          mkdir -p out
+          npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > out/migration.sql
+          wc -l out/migration.sql
+      - uses: actions/upload-artifact@v4
+        with:
+          name: baseline-migration
+          path: out/migration.sql
