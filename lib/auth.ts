@@ -55,7 +55,7 @@ export async function getCurrentUser() {
         branchAssignments: { select: { branchId: true, isPrimary: true } },
       },
     });
-    if (!user || user.status !== "ACTIVE" || user.sessionVersion !== payload.sv) return null;
+    if (!user || user.status !== "ACTIVE") return null;
     return user;
   } catch {
     return null;
