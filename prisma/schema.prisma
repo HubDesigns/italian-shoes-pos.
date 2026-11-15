@@ -31,6 +31,10 @@ model Organization {
   users       User[]
   roles       Role[]
   auditLogs   AuditLog[]
+  brands      Brand[]
+  categories  Category[]
+  products    Product[]
+  variants    ProductVariant[]
 }
 
 model Branch {
@@ -140,4 +144,107 @@ model AuditLog {
   @@index([branchId, createdAt])
   @@index([actorUserId, createdAt])
   @@index([entityType, entityId])
+}
+
+// ---------------------------------------------------------------------------
+// Product catalog (footwear)
+//
+// A Product is one shoe model/article (e.g. "Oxford Classic, article ZH-204").
+// Each ProductVariant is one sellable unit: a specific colour in a specific
+// size, with its own SKU, barcode and prices. Stock and sales will reference
+// ProductVariant, never Product.
+// Money is always Decimal, never Float.
+// ---------------------------------------------------------------------------
+
+enum Department {
+  MEN
+  WOMEN
+  BOYS
+  GIRLS
+  UNISEX
+}
+
+enum SizeSystem {
+  EU
+  UK
+  US
+}
+
+enum ProductStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model Brand {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  products       Product[]
+
+  @@unique([organizationId, name])
+}
+
+model Category {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  products       Product[]
+
+  @@unique([organizationId, name])
+}
+
+model Product {
+  id             String         @id @default(cuid())
+  organizationId String
+  articleCode    String
+  name           String
+  brandId        String?
+  categoryId     String
+  department     Department
+  sizeSystem     SizeSystem     @default(EU)
+  upperMaterial  String?
+  soleMaterial   String?
+  closure        String?
+  heelHeightMm   Int?
+  season         String?
+  description    String?
+  status         ProductStatus  @default(ACTIVE)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  brand          Brand?         @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  category       Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  variants       ProductVariant[]
+
+  @@unique([organizationId, articleCode])
+  @@index([organizationId, status])
+  @@index([brandId])
+  @@index([categoryId])
+}
+
+model ProductVariant {
+  id             String         @id @default(cuid())
+  organizationId String
+  productId      String
+  sku            String
+  barcode        String?
+  color          String
+  size           Decimal        @db.Decimal(4, 1)
+  costPrice      Decimal        @db.Decimal(12, 2)
+  salePrice      Decimal        @db.Decimal(12, 2)
+  status         ProductStatus  @default(ACTIVE)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  product        Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, sku])
+  @@unique([organizationId, barcode])
+  @@unique([productId, color, size])
+  @@index([productId])
+  @@index([organizationId, status])
 }

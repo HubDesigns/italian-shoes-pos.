@@ -10,3 +10,6 @@ coverage/
 *.log
 .DS_Store
 .vercel/
+
+# TypeScript build cache
+*.tsbuildinfo
