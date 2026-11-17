@@ -65,6 +65,9 @@ model User {
   passwordHash       String
   status             UserStatus   @default(INVITED)
   lastLoginAt        DateTime?
+  // Bumped on password change/reset and on suspension; sessions signed with an older value stop working.
+  sessionVersion     Int          @default(0)
+  passwordChangedAt  DateTime?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
   organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
@@ -120,6 +123,20 @@ model UserBranch {
 
   @@id([userId, branchId])
   @@index([branchId])
+}
+
+/// One row per failed sign-in (or failed recovery/password-change) attempt, used to lock out guessing.
+/// Successful sign-ins clear the matching rows. Old rows are pruned automatically.
+model LoginAttempt {
+  id         String   @id @default(cuid())
+  scope      String
+  identifier String
+  ipAddress  String
+  createdAt  DateTime @default(now())
+
+  @@index([scope, identifier, ipAddress, createdAt])
+  @@index([scope, ipAddress, createdAt])
+  @@index([createdAt])
 }
 
 model AuditLog {

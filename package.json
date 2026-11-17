@@ -10,7 +10,11 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:deploy": "prisma migrate deploy",
+    "db:push": "prisma db push",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",

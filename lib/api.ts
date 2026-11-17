@@ -17,6 +17,14 @@ export async function authorize(permission: string): Promise<Authorized> {
   return { user };
 }
 
+/** Signed-in Owner only. Used for staff, role and account administration. */
+export async function authorizeOwner(): Promise<Authorized> {
+  const user = await getCurrentUser();
+  if (!user) return { response: jsonError("Please sign in.", 401) };
+  if (user.role.name !== "OWNER") return { response: jsonError("Only the Owner can do that.", 403) };
+  return { user };
+}
+
 /** Reads the JSON body and validates it; failures come back as a ready-to-return 400 response. */
 export async function readBody<T>(request: Request, schema: ZodType<T>): Promise<{ data: T } | { response: NextResponse }> {
   const raw = await request.json().catch(() => null);

@@ -417,3 +417,18 @@ a.primary-button { text-decoration: none; }
   .management-heading { flex-direction: column; }
   .management-page { padding: 22px 16px; }
 }
+
+/* Stage 1: account controls */
+.staff-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 7px; }
+.staff-actions select { height: 30px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: #536174; font-size: 10px; padding: 0 8px; }
+.staff-suspended .staff-person, .staff-suspended .staff-branches { opacity: .6; }
+.auth-link { display: block; margin-top: 14px; text-align: center; color: #718096; font-size: 11px; text-decoration: none; }
+.auth-link:hover { color: #16865d; text-decoration: underline; }
+.auth-note { color: #718096; font-size: 11px; line-height: 1.6; margin: 0 0 12px; }
+.account-form { max-width: 520px; }
+.account-form .form-field + .form-field { margin-top: 12px; }
+.account-form .form-actions { justify-content: flex-start; padding: 16px 0 0; }
+.sidebar-link { text-decoration: none; color: inherit; }
+@media (max-width: 760px) {
+  .staff-actions { grid-column: 1/-1; justify-content: flex-start; }
+}

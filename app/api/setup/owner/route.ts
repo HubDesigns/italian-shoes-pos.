@@ -1,73 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { createSessionToken, sessionCookieName } from "@/lib/auth";
+import { startSession } from "@/lib/auth";
+import { isUniqueViolation, jsonError, readBody } from "@/lib/api";
+import { writeAudit } from "@/lib/audit";
+import { checkLockout, LOCKED_MESSAGE, recordFailure } from "@/lib/login-guard";
+import { hashPassword, safeEqual } from "@/lib/passwords";
+import { clientIp } from "@/lib/request";
+import { ensureSystemRoles, OWNER_ROLE } from "@/lib/roles";
+import { setupSchema } from "@/lib/validation";
 
-const permissions = [
-  ["dashboard.view", "View dashboard"],
-  ["sales.view", "View POS and sales"],
-  ["sales.create", "Create sales"],
-  ["inventory.view", "View inventory"],
-  ["inventory.manage", "Manage inventory"],
-  ["expenses.view", "View expenses"],
-  ["expenses.manage", "Manage expenses"],
-  ["reports.view", "View branch reports"],
-  ["staff.view", "View staff"],
-  ["branch.manage", "Create and archive branches"],
-  ["permissions.manage", "Manage roles and permissions"],
-  ["settings.manage", "Manage business settings"],
-] as const;
-
+/** One-time creation of the business and its Owner. Needs the setup key from the server settings. */
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null);
-  const setupSecret = String(body?.setupSecret ?? "");
-  if (!process.env.OWNER_SETUP_SECRET || setupSecret !== process.env.OWNER_SETUP_SECRET) {
-    return NextResponse.json({ error: "The setup key is incorrect. Check OWNER_SETUP_SECRET in your local .env file." }, { status: 403 });
-  }
+  const body = await readBody(request, setupSchema);
+  if ("response" in body) return body.response;
+  const { setupSecret, name, email, password, organizationName } = body.data;
+  const ip = clientIp(request);
 
-  const name = String(body?.name ?? "").trim();
-  const email = String(body?.email ?? "").trim().toLowerCase();
-  const password = String(body?.password ?? "");
-  const organizationName = String(body?.organizationName ?? "Italian Shoes").trim();
-  if (!name || !email || password.length < 10 || !organizationName) {
-    return NextResponse.json({ error: "Enter your name, organization, valid email and a password of at least 10 characters." }, { status: 400 });
+  if (await checkLockout("SETUP", "setup", ip)) return jsonError(LOCKED_MESSAGE, 429);
+  const expected = process.env.OWNER_SETUP_SECRET;
+  if (!expected || !safeEqual(setupSecret, expected)) {
+    await recordFailure("SETUP", "setup", ip);
+    return jsonError("The setup key is incorrect. Check OWNER_SETUP_SECRET in your server settings.", 403);
   }
 
   try {
-    const created = await prisma.$transaction(async (tx) => {
+    const passwordHash = await hashPassword(password);
+    const owner = await prisma.$transaction(async (tx) => {
       if (await tx.user.count() > 0) throw new Error("SETUP_ALREADY_COMPLETED");
       const organization = await tx.organization.create({ data: { name: organizationName } });
-      const permissionRows = await Promise.all(permissions.map(([key, description]) =>
-        tx.permission.create({ data: { key, description } })
-      ));
-      const ownerRole = await tx.role.create({
-        data: {
-          organizationId: organization.id, name: "OWNER", description: "Full business control", isSystem: true,
-          permissions: { create: permissionRows.map((permission) => ({ permissionId: permission.id })) },
-        },
+      await ensureSystemRoles(tx, organization.id);
+      const ownerRole = await tx.role.findFirstOrThrow({ where: { organizationId: organization.id, name: OWNER_ROLE }, select: { id: true } });
+      const created = await tx.user.create({
+        data: { organizationId: organization.id, roleId: ownerRole.id, name, email, passwordHash, status: "ACTIVE", passwordChangedAt: new Date() },
+        select: { id: true, sessionVersion: true },
       });
-      const passwordHash = await bcrypt.hash(password, 12);
-      const owner = await tx.user.create({
-        data: { organizationId: organization.id, roleId: ownerRole.id, name, email, passwordHash, status: "ACTIVE" },
+      await writeAudit(tx, {
+        organizationId: organization.id, actorUserId: created.id, action: "OWNER_SETUP_COMPLETED", entityType: "User", entityId: created.id,
+        newData: { organizationName, email }, request,
       });
-      const managerRole = await tx.role.create({ data: { organizationId: organization.id, name: "BRANCH_MANAGER", description: "Access limited by Owner permissions", isSystem: true } });
-      const managerDefaults = permissionRows.filter((permission) => ["dashboard.view", "sales.view", "sales.create", "inventory.view", "reports.view"].includes(permission.key));
-      await tx.rolePermission.createMany({ data: managerDefaults.map((permission) => ({ roleId: managerRole.id, permissionId: permission.id })) });
-      return owner;
-    }, { maxWait: 10000, timeout: 20000 });
+      return created;
+    }, { maxWait: 10000, timeout: 30000 });
 
     const response = NextResponse.json({ ok: true });
-    response.cookies.set(sessionCookieName(), await createSessionToken(created.id), {
-      httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 60 * 60 * 12,
-    });
+    await startSession(response, owner);
     return response;
   } catch (error) {
     if (error instanceof Error && error.message === "SETUP_ALREADY_COMPLETED") {
-      return NextResponse.json({ error: "Initial setup has already been completed. Please sign in." }, { status: 409 });
+      return jsonError("Initial setup has already been completed. Please sign in.", 409);
     }
-    if (error instanceof Error && error.message.includes("Unique constraint")) {
-      return NextResponse.json({ error: "That email address is already registered." }, { status: 409 });
-    }
+    if (isUniqueViolation(error)) return jsonError("Setup is already in progress or completed. Please sign in.", 409);
     throw error;
   }
 }

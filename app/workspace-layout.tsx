@@ -4,13 +4,14 @@ import { hasPermission, type CurrentUser } from "@/lib/auth";
 import LogoutButton from "./logout-button";
 import MobileNav from "./mobile-nav";
 
-export type WorkspaceSection = "overview" | "branches" | "products" | "staff";
+export type WorkspaceSection = "overview" | "branches" | "products" | "staff" | "account";
 
 const sectionTitles: Record<WorkspaceSection, string> = {
   overview: "Overview",
   branches: "Branches",
   products: "Products",
   staff: "Staff & permissions",
+  account: "My account",
 };
 
 type Props = { children: React.ReactNode; active: WorkspaceSection; user: CurrentUser };
@@ -47,10 +48,10 @@ export default function WorkspaceLayout({ children, active, user }: Props) {
         <div><ChartNoAxesCombined size={16} /> Reports</div>
       </div>
       <div className="sidebar-bottom">
-        <div className="user-chip">
+        <Link href="/account" className="user-chip sidebar-link" title="My account and password">
           <div className="avatar">{user.name.slice(0, 1).toUpperCase()}</div>
           <div><div className="user-name">{user.name}</div><div className="user-role">{owner ? "Owner / Super Admin" : user.role.name.replaceAll("_", " ")}</div></div>
-        </div>
+        </Link>
         <LogoutButton />
       </div>
     </aside>
